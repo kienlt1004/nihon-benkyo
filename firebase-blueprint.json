@@ -1,0 +1,428 @@
+{
+  "entities": {
+    "users": {
+      "fields": {
+        "email": {
+          "type": "string",
+          "description": "User email address"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name"
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "User avatar photo URL"
+        },
+        "lastActive": {
+          "type": "string",
+          "description": "ISO timestamp of last activity"
+        },
+        "starredWordIds": {
+          "type": "list",
+          "description": "Array of saved/bookmarked vocabulary IDs"
+        },
+        "masteredWordIds": {
+          "type": "list",
+          "description": "Array of mastered vocabulary IDs"
+        },
+        "studyStats": {
+          "type": "map",
+          "description": "Overall study statistics (totalQuizzes, highestScore, wordsStudied)"
+        }
+      }
+    },
+    "users/{userId}/quizHistory": {
+      "fields": {
+        "score": {
+          "type": "number",
+          "description": "Correct answers in quiz"
+        },
+        "total": {
+          "type": "number",
+          "description": "Total questions attempted"
+        },
+        "lesson": {
+          "type": "string",
+          "description": "Lesson selected or all"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO string timestamp"
+        }
+      }
+    },
+    "vocabulary": {
+      "fields": {
+        "id": {
+          "type": "number",
+          "description": "Numeric identifier for the word"
+        },
+        "lesson": {
+          "type": "number",
+          "description": "Lesson number (e.g. 25-34)"
+        },
+        "word": {
+          "type": "string",
+          "description": "Japanese word"
+        },
+        "hanViet": {
+          "type": "string",
+          "description": "Sino-Vietnamese reading"
+        },
+        "type": {
+          "type": "string",
+          "description": "Word type classification"
+        },
+        "meaning": {
+          "type": "string",
+          "description": "Vietnamese meaning"
+        },
+        "example": {
+          "type": "string",
+          "description": "Example usage sentence"
+        }
+      }
+    },
+    "grammar": {
+      "fields": {
+        "id": {
+          "type": "number",
+          "description": "Numeric identifier for grammar point"
+        },
+        "structure": {
+          "type": "string",
+          "description": "Grammar structure formula"
+        },
+        "meaning": {
+          "type": "string",
+          "description": "Vietnamese explanation"
+        },
+        "formula": {
+          "type": "string",
+          "description": "Detailed formation rules"
+        },
+        "example": {
+          "type": "string",
+          "description": "Example sentences"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Usage notes and tips"
+        }
+      }
+    },
+    "listening_exams": {
+      "fields": {
+        "id": {
+          "type": "string",
+          "description": "Exam unique identifier (e.g. jlpt_2021_n4, jitsuryoku_up_cda)"
+        },
+        "title": {
+          "type": "string",
+          "description": "Exam title"
+        },
+        "questionsCount": {
+          "type": "number",
+          "description": "Total number of listening questions"
+        },
+        "sectionsCount": {
+          "type": "number",
+          "description": "Total number of intro/instruction sections"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of sync"
+        }
+      }
+    },
+    "listening_questions": {
+      "fields": {
+        "id": {
+          "type": "string",
+          "description": "Question identifier"
+        },
+        "examId": {
+          "type": "string",
+          "description": "ID of parent exam"
+        },
+        "mondai": {
+          "type": "number",
+          "description": "Mondai index 1-4"
+        },
+        "title": {
+          "type": "string",
+          "description": "Question title and scenario summary"
+        },
+        "script": {
+          "type": "list",
+          "description": "Complete Japanese dialogue lines with speaker and Vietnamese translation"
+        },
+        "correctAnswer": {
+          "type": "number",
+          "description": "Correct answer index"
+        },
+        "explanation": {
+          "type": "string",
+          "description": "Detailed explanation in Vietnamese"
+        }
+      }
+    },
+    "listening_notes": {
+      "fields": {
+        "id": {
+          "type": "number",
+          "description": "Unique note index (1-87)"
+        },
+        "title": {
+          "type": "string",
+          "description": "Note title / tip"
+        },
+        "category": {
+          "type": "string",
+          "description": "JLPT exam category"
+        },
+        "japanese": {
+          "type": "string",
+          "description": "Japanese example sentence / key phrases"
+        },
+        "vietnamese": {
+          "type": "string",
+          "description": "Vietnamese translation"
+        }
+      }
+    },
+    "sync_logs": {
+      "fields": {
+        "timestamp": {
+          "type": "string",
+          "description": "ISO timestamp when sync ran"
+        },
+        "type": {
+          "type": "string",
+          "description": "Sync trigger type (cronjob or manual)"
+        },
+        "itemsSynced": {
+          "type": "number",
+          "description": "Total items synced in this run"
+        },
+        "status": {
+          "type": "string",
+          "description": "success or error"
+        }
+      }
+    },
+    "kanji_1200": {
+      "fields": {
+        "id": {
+          "type": "string",
+          "description": "Unique ID for the 1200 Hán tự item"
+        },
+        "stt": {
+          "type": "number",
+          "description": "Index 1 to 1264"
+        },
+        "trang": {
+          "type": "number",
+          "description": "Page number in Dong Du book (1-16)"
+        },
+        "khung": {
+          "type": "number",
+          "description": "Box index (1-4)"
+        },
+        "so": {
+          "type": "number",
+          "description": "Item number in box (1-20)"
+        },
+        "kanji": {
+          "type": "string",
+          "description": "Kanji or radical character"
+        },
+        "hanViet": {
+          "type": "string",
+          "description": "Sino-Vietnamese reading"
+        },
+        "meaning": {
+          "type": "string",
+          "description": "Vietnamese meaning"
+        },
+        "isRadical": {
+          "type": "boolean",
+          "description": "Whether character is a radical (bộ thủ)"
+        }
+      }
+    },
+    "kanji_intermediate": {
+      "fields": {
+        "id": {
+          "type": "string",
+          "description": "Unique ID for intermediate kanji"
+        },
+        "stt": {
+          "type": "number",
+          "description": "Index 1 to 402"
+        },
+        "hang": {
+          "type": "number",
+          "description": "Row index 1 to 41"
+        },
+        "kanji": {
+          "type": "string",
+          "description": "Kanji character"
+        },
+        "hanViet": {
+          "type": "string",
+          "description": "Sino-Vietnamese reading"
+        },
+        "onyomi": {
+          "type": "list",
+          "description": "Katakana Onyomi readings"
+        },
+        "kunyomi": {
+          "type": "list",
+          "description": "Hiragana Kunyomi readings"
+        },
+        "meaning": {
+          "type": "string",
+          "description": "Vietnamese meaning"
+        },
+        "words": {
+          "type": "list",
+          "description": "Example words with reading, meaning, pos (verb/noun/adj), and readingType (on/kun)"
+        }
+      }
+    },
+    "dongdu_kanji": {
+      "fields": {
+        "id": {
+          "type": "string",
+          "description": "Unique ID for 100 Dong Du Kanji"
+        },
+        "kanji": {
+          "type": "string",
+          "description": "Kanji character"
+        },
+        "hanViet": {
+          "type": "string",
+          "description": "Sino-Vietnamese reading"
+        },
+        "onyomi": {
+          "type": "list",
+          "description": "Hiragana Onyomi readings"
+        },
+        "kunyomi": {
+          "type": "list",
+          "description": "Hiragana Kunyomi readings"
+        },
+        "meaning": {
+          "type": "string",
+          "description": "Vietnamese meaning"
+        },
+        "radical": {
+          "type": "string",
+          "description": "Radical (Bộ thủ)"
+        },
+        "radicalMeaning": {
+          "type": "string",
+          "description": "Radical meaning"
+        },
+        "strokeCount": {
+          "type": "number",
+          "description": "Stroke count"
+        },
+        "mnemonic": {
+          "type": "string",
+          "description": "Mnemonic memory cue"
+        },
+        "words": {
+          "type": "list",
+          "description": "Example words with verb/noun tags and On/Kun readingType"
+        },
+        "col": {
+          "type": "number",
+          "description": "Column 1-10"
+        },
+        "row": {
+          "type": "number",
+          "description": "Row 1-10"
+        },
+        "order": {
+          "type": "number",
+          "description": "Order 1-100"
+        }
+      }
+    },
+    "vocab_topics": {
+      "fields": {
+        "id": {
+          "type": "string",
+          "description": "Unique ID for topic vocabulary"
+        },
+        "stt": {
+          "type": "number",
+          "description": "Index 1 to 259"
+        },
+        "topic": {
+          "type": "string",
+          "description": "Topic name (1日目 đến 6日)"
+        },
+        "word": {
+          "type": "string",
+          "description": "Kanji / Katakana word"
+        },
+        "hiragana": {
+          "type": "string",
+          "description": "Hiragana reading"
+        },
+        "hanViet": {
+          "type": "string",
+          "description": "Sino-Vietnamese reading"
+        },
+        "meaning": {
+          "type": "string",
+          "description": "Vietnamese meaning"
+        }
+      }
+    },
+    "vocab_lessons": {
+      "fields": {
+        "id": {
+          "type": "string",
+          "description": "Unique ID for lesson vocabulary"
+        },
+        "stt": {
+          "type": "number",
+          "description": "Index 1 to 34"
+        },
+        "bai": {
+          "type": "number",
+          "description": "Lesson number"
+        },
+        "slide": {
+          "type": "number",
+          "description": "Slide number"
+        },
+        "word": {
+          "type": "string",
+          "description": "Word expression"
+        },
+        "hiragana": {
+          "type": "string",
+          "description": "Hiragana reading"
+        },
+        "hanViet": {
+          "type": "string",
+          "description": "Sino-Vietnamese reading"
+        },
+        "meaning": {
+          "type": "string",
+          "description": "Vietnamese meaning"
+        },
+        "example": {
+          "type": "string",
+          "description": "Example usage"
+        }
+      }
+    }
+  }
+}

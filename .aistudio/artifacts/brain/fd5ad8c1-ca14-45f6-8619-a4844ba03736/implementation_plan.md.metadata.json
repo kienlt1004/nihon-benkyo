@@ -1,0 +1,6 @@
+{
+  "summary": "Cập nhật kế hoạch triển khai: Bổ sung yêu cầu tối ưu hóa Responsive toàn diện cho thiết bị di động từ iPhone 12 trở lên (viewport 390px+, safe area, touch target >= 44px, bố cục lật thẻ Flashcard và Quiz thân thiện với thao tác một tay trên mobile) song song với triển khai Tab Từ Vựng N3 Sou Matome và đồng bộ Firestore.",
+  "updatedAt": "2026-11-05T09:22:38.390445335Z",
+  "requestFeedback": true,
+  "userFacing": true
+}

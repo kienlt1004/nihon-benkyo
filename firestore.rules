@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Public read/write access for Japanese N4 dictionary & study data
+    match /users/{userId} {
+      allow read, write: if true;
+
+      match /quizHistory/{quizId} {
+        allow read, write: if true;
+      }
+    }
+
+    match /vocabulary/{wordId} {
+      allow read, write: if true;
+    }
+
+    match /grammar/{grammarId} {
+      allow read, write: if true;
+    }
+
+    match /listening_exams/{examId} {
+      allow read, write: if true;
+    }
+
+    match /listening_questions/{questionId} {
+      allow read, write: if true;
+    }
+
+    match /listening_notes/{noteId} {
+      allow read, write: if true;
+    }
+
+    match /sync_logs/{logId} {
+      allow read, write: if true;
+    }
+
+    match /kanji_1200/{itemId} {
+      allow read, write: if true;
+    }
+
+    match /kanji_intermediate/{itemId} {
+      allow read, write: if true;
+    }
+
+    match /dongdu_kanji/{itemId} {
+      allow read, write: if true;
+    }
+
+    match /vocab_topics/{itemId} {
+      allow read, write: if true;
+    }
+
+    match /vocab_lessons/{itemId} {
+      allow read, write: if true;
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Nihongo N4 Vocab",
+  "description": "Ứng dụng học từ vựng tiếng Nhật N4 với Flashcard và Trắc nghiệm.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
