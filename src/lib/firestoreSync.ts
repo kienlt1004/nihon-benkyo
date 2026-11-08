@@ -575,3 +575,92 @@ export async function pushAllKanjiDataToFirestore(
   };
 }
 
+import { TuVungN3SouMatomeItem, tuVungN3SouMatomeData } from "../data/tuVungN3SouMatome";
+
+/**
+ * Get count of vocabulary_n3_soumatome documents currently in Cloud Firestore
+ */
+export async function getFirestoreN3VocabCount(): Promise<number> {
+  try {
+    const col = collection(db, "vocabulary_n3_soumatome");
+    const snap = await getCountFromServer(col);
+    return snap.data().count;
+  } catch (err) {
+    console.warn("Could not count vocabulary_n3_soumatome:", err);
+    return 0;
+  }
+}
+
+/**
+ * Push N3 Sou Matome Vocabulary items (default or custom merged) to Cloud Firestore
+ */
+export async function pushN3SouMatomeDataToFirestore(
+  items: TuVungN3SouMatomeItem[] = tuVungN3SouMatomeData,
+  onProgress?: (progressText: string, percentage: number) => void
+): Promise<{ success: boolean; uploadedCount: number }> {
+  const CHUNK_SIZE = 200;
+  const nowIso = new Date().toISOString();
+  let processedItems = 0;
+
+  for (let i = 0; i < items.length; i += CHUNK_SIZE) {
+    const chunk = items.slice(i, i + CHUNK_SIZE);
+    const batch = writeBatch(db);
+
+    chunk.forEach((item) => {
+      const docRef = doc(db, "vocabulary_n3_soumatome", item.id);
+      batch.set(docRef, {
+        id: item.id,
+        stt: item.stt,
+        week: item.week,
+        weekTitle: item.weekTitle,
+        day: item.day,
+        dayTitle: item.dayTitle,
+        category: item.category,
+        japanese: item.japanese,
+        hiragana: item.hiragana,
+        vietnamese: item.vietnamese,
+        type: item.type,
+        exampleSentence: item.exampleSentence || "",
+        exampleMeaning: item.exampleMeaning || "",
+        updatedAt: nowIso,
+      });
+    });
+
+    await batch.commit();
+    processedItems += chunk.length;
+
+    if (onProgress) {
+      const pct = Math.round((processedItems / items.length) * 100);
+      onProgress(
+        `Đang đồng bộ Từ Vựng N3: ${processedItems}/${items.length} từ...`,
+        pct
+      );
+    }
+  }
+
+  // Log sync history
+  try {
+    const logBatch = writeBatch(db);
+    const logDoc = doc(db, "sync_logs", `sync_n3_soumatome_${Date.now()}`);
+    logBatch.set(logDoc, {
+      timestamp: nowIso,
+      type: "n3_soumatome_vocab_sync",
+      itemsSynced: items.length,
+      uploadedCount: items.length,
+      status: "success",
+    });
+    await logBatch.commit();
+  } catch (logErr) {
+    console.warn("Could not write sync log for n3 sou matome:", logErr);
+  }
+
+  if (onProgress) {
+    onProgress(`🎉 Đã đồng bộ thành công ${items.length} từ vựng N3 Sou Matome lên Cloud Firestore!`, 100);
+  }
+
+  return {
+    success: true,
+    uploadedCount: items.length,
+  };
+}
+

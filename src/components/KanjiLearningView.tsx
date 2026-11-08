@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useDeferredValue } from "react";
 import {
   Grid,
   Layers,
@@ -78,8 +78,18 @@ export function KanjiLearningView() {
   const [datasetTab, setDatasetTab] = useState<DatasetTab>("100_kanji");
   const [viewMode, setViewMode] = useState<KanjiViewMode>("grid");
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearch = useDeferredValue(searchQuery);
   const [currentlySpeaking, setCurrentlySpeaking] = useState<string | null>(null);
   const [showOriginalImageModal, setShowOriginalImageModal] = useState(false);
+
+  // Audio cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
 
   // Firestore Sync status
   const [syncStats, setSyncStats] = useState<KanjiSyncStats | null>(null);
@@ -290,7 +300,7 @@ export function KanjiLearningView() {
 
   // Filtered Items
   const filteredList = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
+    const q = deferredSearch.toLowerCase().trim();
     return rawUnifiedItems.filter((item) => {
       // Specific dataset filters
       if (datasetTab === "100_kanji" && selectedCol100 !== "all") {
@@ -354,7 +364,7 @@ export function KanjiLearningView() {
     statusFilter,
     masteredIds,
     learningIds,
-    searchQuery,
+    deferredSearch,
   ]);
 
   // Reset page when filter or tab changes

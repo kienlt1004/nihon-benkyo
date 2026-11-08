@@ -423,6 +423,66 @@
           "description": "Example usage"
         }
       }
+    },
+    "vocabulary_n3_soumatome": {
+      "fields": {
+        "id": {
+          "type": "string",
+          "description": "Unique ID for N3 Sou Matome item"
+        },
+        "stt": {
+          "type": "number",
+          "description": "Index 1 to 415"
+        },
+        "week": {
+          "type": "number",
+          "description": "Week number (1 or 2)"
+        },
+        "weekTitle": {
+          "type": "string",
+          "description": "Week topic title"
+        },
+        "day": {
+          "type": "number",
+          "description": "Day number 1 to 6"
+        },
+        "dayTitle": {
+          "type": "string",
+          "description": "Day topic title"
+        },
+        "category": {
+          "type": "string",
+          "description": "Category classification"
+        },
+        "japanese": {
+          "type": "string",
+          "description": "Japanese word expression"
+        },
+        "hiragana": {
+          "type": "string",
+          "description": "Hiragana reading"
+        },
+        "vietnamese": {
+          "type": "string",
+          "description": "Vietnamese translation"
+        },
+        "type": {
+          "type": "string",
+          "description": "Part of speech (noun, verb, adj, phrase, adverb)"
+        },
+        "exampleSentence": {
+          "type": "string",
+          "description": "Japanese example sentence"
+        },
+        "exampleMeaning": {
+          "type": "string",
+          "description": "Vietnamese example translation"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of sync"
+        }
+      }
     }
   }
 }

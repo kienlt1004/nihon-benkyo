@@ -3,22 +3,69 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import { n4Vocabulary } from "./data/vocabulary";
 import { n4Grammar } from "./data/grammar";
 import { AppMode } from "./types";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { Navbar } from "./components/Navbar";
-import { ListView } from "./components/ListView";
-import { FlashcardView } from "./components/FlashcardView";
-import { QuizView } from "./components/QuizView";
-import { GrammarView } from "./components/GrammarView";
-import { AiSearchLookup } from "./components/AiSearchLookup";
-import { LiveVoiceKaiwa } from "./components/LiveVoiceKaiwa";
-import { ListeningView } from "./components/ListeningView";
-import { PersonalReviewView } from "./components/PersonalReviewView";
-import { KanjiLearningView } from "./components/KanjiLearningView";
-import { Cloud, Star, CheckCircle, Sparkles, Radio } from "lucide-react";
+
+// Lazy-loaded views to reduce initial bundle by >80%
+const ListView = React.lazy(() =>
+  import("./components/ListView").then((m) => ({ default: m.ListView }))
+);
+const FlashcardView = React.lazy(() =>
+  import("./components/FlashcardView").then((m) => ({ default: m.FlashcardView }))
+);
+const QuizView = React.lazy(() =>
+  import("./components/QuizView").then((m) => ({ default: m.QuizView }))
+);
+const GrammarView = React.lazy(() =>
+  import("./components/GrammarView").then((m) => ({ default: m.GrammarView }))
+);
+const AiSearchLookup = React.lazy(() =>
+  import("./components/AiSearchLookup").then((m) => ({ default: m.AiSearchLookup }))
+);
+const LiveVoiceKaiwa = React.lazy(() =>
+  import("./components/LiveVoiceKaiwa").then((m) => ({ default: m.LiveVoiceKaiwa }))
+);
+const ListeningView = React.lazy(() =>
+  import("./components/ListeningView").then((m) => ({ default: m.ListeningView }))
+);
+const PersonalReviewView = React.lazy(() =>
+  import("./components/PersonalReviewView").then((m) => ({ default: m.PersonalReviewView }))
+);
+const KanjiLearningView = React.lazy(() =>
+  import("./components/KanjiLearningView").then((m) => ({ default: m.KanjiLearningView }))
+);
+const N3VocabLearningView = React.lazy(() =>
+  import("./components/N3VocabLearningView").then((m) => ({ default: m.N3VocabLearningView }))
+);
+
+function ViewLoadingSkeleton() {
+  return (
+    <div className="w-full bg-white rounded-2xl border border-slate-200/90 p-6 sm:p-8 shadow-xs animate-pulse space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="space-y-2">
+          <div className="h-5 w-48 bg-slate-200 rounded-md"></div>
+          <div className="h-3.5 w-72 bg-slate-100 rounded-md"></div>
+        </div>
+        <div className="h-8 w-24 bg-slate-100 rounded-xl"></div>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-20 bg-slate-100 rounded-xl border border-slate-200/50"></div>
+        ))}
+      </div>
+      <div className="h-64 bg-slate-50 rounded-2xl border border-slate-200/60 flex items-center justify-center">
+        <div className="text-center space-y-2">
+          <div className="w-7 h-7 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-xs font-semibold text-slate-400">Đang tải học phần...</p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function MainApp() {
   const [mode, setMode] = useState<AppMode>("list");
@@ -70,6 +117,7 @@ function MainApp() {
               {mode === "listening" && "Luyện Nghe JLPT N4 (Audio, Script & Dịch Câu)"}
               {mode === "review" && "Sổ Tay Ôn Tập Cá Nhân & Sửa Lỗi Sai N4/N3"}
               {mode === "kanji" && "Hán Tự & Từ Vựng N3 (Đông Du 1200 • Kanji Sơ Trung Cấp)"}
+              {mode === "vocab-n3" && "Từ Vựng N3 Sou Matome (Tuần 1 & Tuần 2)"}
               {mode === "ai-search" && "Tra Cứu Chuyên Sâu (Google Search Grounding)"}
               {mode === "live-voice" && "Luyện Đàm Thoại Trực Tiếp (Gemini 3.8 Live)"}
             </h2>
@@ -88,6 +136,8 @@ function MainApp() {
                 "Tổng hợp 6 phần: Ngữ pháp cốt lõi, từ vựng theo cặp, bảng trợ từ, 13 câu sửa sai, bài văn và checklist 8 nhóm."}
               {mode === "kanji" &&
                 "Học toàn diện 1,264 Hán tự 1200, 402 chữ Kanji Sơ Trung Cấp, 100 chữ trọng tâm và 293 từ vựng N3. Lưu trữ trực tiếp trên Cloud Firestore."}
+              {mode === "vocab-n3" &&
+                "Hơn 320 từ vựng và biểu thức thực tế từ 14 trang giáo trình Sou Matome N3 (Việc nhà, Ra ngoài) kèm Flashcard âm thanh và Quiz phản xạ."}
               {mode === "ai-search" &&
                 "Được hỗ trợ bởi Gemini 3.5 Flash đối chiếu dữ liệu web tiếng Nhật thực tế qua Google Search."}
               {mode === "live-voice" &&
@@ -106,37 +156,42 @@ function MainApp() {
           </div>
         </div>
 
-        {/* View Switcher Container with Standard Min Height */}
+        {/* View Switcher Container with Suspense Fallback */}
         <div className="w-full min-h-[540px]">
-          {mode === "list" && (
-            <ListView data={filteredData} onLookupWord={handleLookupWord} />
-          )}
-          {mode === "flashcard" && (
-            <FlashcardView data={filteredData} onLookupWord={handleLookupWord} />
-          )}
-          {mode === "quiz" && (
-            <QuizView
-              data={filteredData}
-              selectedLesson={selectedLesson}
-              onLookupWord={handleLookupWord}
-            />
-          )}
-          {mode === "grammar" && (
-            <GrammarView
-              data={n4Grammar}
-              onLookupGrammar={(st) => handleLookupWord(`Giải thích ngữ pháp N4: ${st}`)}
-            />
-          )}
-          {mode === "listening" && <ListeningView />}
-          {mode === "review" && <PersonalReviewView />}
-          {mode === "kanji" && <KanjiLearningView />}
-          {mode === "ai-search" && (
-            <AiSearchLookup
-              initialWord={lookupTargetWord}
-              onClearInitial={() => setLookupTargetWord("")}
-            />
-          )}
-          {mode === "live-voice" && <LiveVoiceKaiwa />}
+          <Suspense fallback={<ViewLoadingSkeleton />}>
+            {mode === "list" && (
+              <ListView data={filteredData} onLookupWord={handleLookupWord} />
+            )}
+            {mode === "flashcard" && (
+              <FlashcardView data={filteredData} onLookupWord={handleLookupWord} />
+            )}
+            {mode === "quiz" && (
+              <QuizView
+                data={filteredData}
+                selectedLesson={selectedLesson}
+                onLookupWord={handleLookupWord}
+              />
+            )}
+            {mode === "grammar" && (
+              <GrammarView
+                data={n4Grammar}
+                onLookupGrammar={(st) => handleLookupWord(`Giải thích ngữ pháp N4: ${st}`)}
+              />
+            )}
+            {mode === "listening" && <ListeningView />}
+            {mode === "review" && <PersonalReviewView />}
+            {mode === "kanji" && <KanjiLearningView />}
+            {mode === "vocab-n3" && (
+              <N3VocabLearningView onLookupWord={handleLookupWord} />
+            )}
+            {mode === "ai-search" && (
+              <AiSearchLookup
+                initialWord={lookupTargetWord}
+                onClearInitial={() => setLookupTargetWord("")}
+              />
+            )}
+            {mode === "live-voice" && <LiveVoiceKaiwa />}
+          </Suspense>
         </div>
       </main>
     </div>

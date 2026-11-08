@@ -53,5 +53,9 @@ service cloud.firestore {
     match /vocab_lessons/{itemId} {
       allow read, write: if true;
     }
+
+    match /vocabulary_n3_soumatome/{itemId} {
+      allow read, write: if true;
+    }
   }
 }

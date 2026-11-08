@@ -1,8 +1,9 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useDeferredValue } from "react";
 import {
   tuVungN3SouMatomeData,
   TuVungN3SouMatomeItem,
 } from "../data/tuVungN3SouMatome";
+import { N3DataImportExportModal } from "./N3DataImportExportModal";
 import {
   Volume2,
   Search,
@@ -17,9 +18,10 @@ import {
   List,
   CheckSquare,
   BookOpen,
-  Filter,
   X,
   VolumeX,
+  Database,
+  ArrowUpRight,
 } from "lucide-react";
 
 interface N3VocabLearningViewProps {
@@ -27,12 +29,63 @@ interface N3VocabLearningViewProps {
 }
 
 export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) {
+  // Vocabulary Dataset State (Defaults to 415 items or saved merged dataset)
+  const [allItems, setAllItems] = useState<TuVungN3SouMatomeItem[]>(() => {
+    try {
+      const saved = localStorage.getItem("n3_soumatome_all_data");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return tuVungN3SouMatomeData;
+  });
+
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("n3_soumatome_all_data", JSON.stringify(allItems));
+    } catch {}
+  }, [allItems]);
+
+  const handleMergeSuccess = (
+    merged: TuVungN3SouMatomeItem[],
+    stats: { added: number; updated: number }
+  ) => {
+    setAllItems(merged);
+    setToastMessage(
+      `Đã ghép thành công: +${stats.added} từ mới, ${stats.updated} từ cập nhật! Tổng hiện có ${merged.length} từ.`
+    );
+    setTimeout(() => setToastMessage(null), 5000);
+  };
+
+  const handleResetToDefault = () => {
+    setAllItems(tuVungN3SouMatomeData);
+    try {
+      localStorage.removeItem("n3_soumatome_all_data");
+    } catch {}
+    setToastMessage("Đã khôi phục về danh sách 415 từ gốc theo 14 trang giáo trình.");
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
   // Navigation / View state
   const [subMode, setSubMode] = useState<"list" | "flashcard" | "quiz">("list");
   const [selectedWeek, setSelectedWeek] = useState<number | "all">("all");
   const [selectedDay, setSelectedDay] = useState<number | "all">("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+
+  // Speech cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
 
   // Flashcard state
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
@@ -46,7 +99,7 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
   const [quizScore, setQuizScore] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
-  const [wrongItemIds, setWrongItemIds] = useState<string[]>([]);
+  const [, setWrongItemIds] = useState<string[]>([]);
   const [quizFinished, setQuizFinished] = useState(false);
 
   // Local saved state (Mastered / Starred)
@@ -99,13 +152,13 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
 
   // Filtered dataset
   const filteredData = useMemo(() => {
-    return tuVungN3SouMatomeData.filter((item) => {
+    const q = deferredSearchQuery.toLowerCase().trim();
+    return allItems.filter((item) => {
       if (selectedWeek !== "all" && item.week !== selectedWeek) return false;
       if (selectedDay !== "all" && item.day !== selectedDay) return false;
       if (selectedCategory !== "all" && item.category !== selectedCategory)
         return false;
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
+      if (q) {
         const matchJp = item.japanese.toLowerCase().includes(q);
         const matchHira = item.hiragana.toLowerCase().includes(q);
         const matchVi = item.vietnamese.toLowerCase().includes(q);
@@ -114,19 +167,7 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
       }
       return true;
     });
-  }, [selectedWeek, selectedDay, selectedCategory, searchQuery]);
-
-  // Distinct categories based on current week/day selection
-  const categories = useMemo(() => {
-    const list = tuVungN3SouMatomeData
-      .filter((item) => {
-        if (selectedWeek !== "all" && item.week !== selectedWeek) return false;
-        if (selectedDay !== "all" && item.day !== selectedDay) return false;
-        return true;
-      })
-      .map((item) => item.category);
-    return Array.from(new Set(list)).sort();
-  }, [selectedWeek, selectedDay]);
+  }, [allItems, selectedWeek, selectedDay, selectedCategory, deferredSearchQuery]);
 
   // Prepare Flashcard order
   useEffect(() => {
@@ -204,17 +245,17 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
   // QUIZ ENGINE
   // -------------------------------------------------------------
   const quizItems = useMemo(() => {
-    return filteredData.length > 4
+    return filteredData.length >= 4
       ? filteredData
-      : tuVungN3SouMatomeData.slice(0, 50);
-  }, [filteredData]);
+      : allItems.slice(0, 50);
+  }, [filteredData, allItems]);
 
   const currentQuizItem = quizItems[quizQuestionIndex] || quizItems[0];
 
   // Generate 4 randomized options
   const quizOptions = useMemo(() => {
     if (!currentQuizItem) return [];
-    const wrongPool = tuVungN3SouMatomeData
+    const wrongPool = allItems
       .filter((i) => i.id !== currentQuizItem.id)
       .sort(() => Math.random() - 0.5)
       .slice(0, 3);
@@ -222,7 +263,7 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
       () => Math.random() - 0.5
     );
     return combined;
-  }, [currentQuizItem]);
+  }, [currentQuizItem, allItems]);
 
   const handleSelectQuizOption = (index: number) => {
     if (isAnswerSubmitted) return;
@@ -259,40 +300,64 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
 
   return (
     <div className="w-full space-y-4 sm:space-y-6">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs sm:text-sm font-semibold flex items-center justify-between gap-3 shadow-xs animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+            <span>{toastMessage}</span>
+          </div>
+          <button
+            onClick={() => setToastMessage(null)}
+            className="text-emerald-600 hover:text-emerald-800 p-1 cursor-pointer"
+          >
+            <X size={15} />
+          </button>
+        </div>
+      )}
+
       {/* ------------------------------------------------------- */}
       {/* 1. HERO / STATS HEADER & MODE SWITCHER                  */}
       {/* ------------------------------------------------------- */}
       <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 border border-indigo-200/60 px-2 py-0.5 rounded-md">
                 Sou Matome N3 Goi
               </span>
               <span className="text-xs text-slate-400 font-medium">·</span>
               <span className="text-xs text-slate-500 font-medium">
-                14 trang giáo trình số hóa
+                14 trang tài liệu gốc
               </span>
+              {allItems.length > tuVungN3SouMatomeData.length && (
+                <>
+                  <span className="text-xs text-slate-400 font-medium">·</span>
+                  <span className="text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-bold">
+                    Đã mở rộng (+{allItems.length - tuVungN3SouMatomeData.length} từ)
+                  </span>
+                </>
+              )}
             </div>
-            <h1 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight mt-1">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-1">
               Từ Vựng N3 Sou Matome
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-              Tổng hợp {tuVungN3SouMatomeData.length} từ vựng, biểu thức và ví dụ
-              thực tế từ Tuần 1 (Việc nhà) & Tuần 2 (Ra ngoài).
+              Kho từ vựng gồm {allItems.length} mục biểu thức và ví
+              dụ thực tế (Tuần 1 Việc nhà, Tuần 2 Ra ngoài & dữ liệu mở rộng).
             </p>
           </div>
 
           {/* Stats Bar */}
-          <div className="flex items-center gap-3 self-start md:self-center">
-            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+          <div className="flex items-center gap-2 self-start md:self-center shrink-0">
+            <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 min-h-[44px]">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
               <span>
                 Đã thuộc:{" "}
                 <strong className="text-emerald-700 tabular-nums">
                   {learnedIds.size}
                 </strong>
-                /{tuVungN3SouMatomeData.length}
+                /{allItems.length}
               </span>
               <span className="text-slate-300">·</span>
               <span>
@@ -305,18 +370,18 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
           </div>
         </div>
 
-        {/* Mode Switcher Buttons (iPhone 12+ thumb-friendly) */}
-        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2">
+        {/* Mode Switcher Buttons & Import/Export (iPhone 12+ touch target >= 48px) */}
+        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2.5">
           <div className="inline-flex p-1 bg-slate-100 rounded-xl w-full sm:w-auto">
             <button
               onClick={() => setSubMode("list")}
-              className={`flex-1 sm:flex-none px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              className={`flex-1 sm:flex-none px-4 py-2.5 min-h-[44px] text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
                 subMode === "list"
                   ? "bg-white text-indigo-900 shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              <List size={15} />
+              <List size={16} />
               <span>Danh Sách ({filteredData.length})</span>
             </button>
 
@@ -325,13 +390,13 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
                 setSubMode("flashcard");
                 setIsFlipped(false);
               }}
-              className={`flex-1 sm:flex-none px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              className={`flex-1 sm:flex-none px-4 py-2.5 min-h-[44px] text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
                 subMode === "flashcard"
                   ? "bg-white text-indigo-900 shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              <Layers size={15} />
+              <Layers size={16} />
               <span>Flashcard</span>
             </button>
 
@@ -340,38 +405,52 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
                 setSubMode("quiz");
                 restartQuiz();
               }}
-              className={`flex-1 sm:flex-none px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              className={`flex-1 sm:flex-none px-4 py-2.5 min-h-[44px] text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
                 subMode === "quiz"
                   ? "bg-white text-indigo-900 shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              <CheckSquare size={15} />
+              <CheckSquare size={16} />
               <span>Trắc Nghiệm</span>
             </button>
           </div>
 
-          {/* Quick Search on Desktop & Mobile */}
-          <div className="relative w-full sm:w-64">
-            <Search
-              size={15}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm Kanji, Hiragana, nghĩa..."
-              className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-colors"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              >
-                <X size={14} />
-              </button>
-            )}
+          {/* Import / Export & Quick Search Input */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => setIsImportModalOpen(true)}
+              className="min-h-[44px] px-3.5 py-2 rounded-xl border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100 text-indigo-800 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0 shadow-2xs"
+              title="Nhập thêm từ vựng từ tệp JSON/CSV hoặc xuất dữ liệu"
+            >
+              <Database size={15} className="text-indigo-600" />
+              <span>Nhập / Xuất</span>
+              {allItems.length > tuVungN3SouMatomeData.length && (
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              )}
+            </button>
+
+            <div className="relative flex-1 sm:w-60">
+              <Search
+                size={15}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+              />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Tìm Kanji, Hiragana..."
+                className="w-full pl-9 pr-9 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-colors min-h-[44px]"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -381,7 +460,7 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
       {/* ------------------------------------------------------- */}
       <div className="bg-white rounded-2xl border border-slate-200/90 p-3 sm:p-4 shadow-xs space-y-2.5">
         {/* Week Selector */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-0.5">
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-0.5">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1">
             Tuần:
           </span>
@@ -391,13 +470,13 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
               setSelectedDay("all");
               setSelectedCategory("all");
             }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
+            className={`min-h-[40px] px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
               selectedWeek === "all"
                 ? "bg-indigo-600 text-white shadow-2xs"
                 : "bg-slate-100 hover:bg-slate-200 text-slate-700"
             }`}
           >
-            Tất cả tuần (T1 + T2)
+            Tất cả tuần
           </button>
 
           <button
@@ -406,13 +485,13 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
               setSelectedDay("all");
               setSelectedCategory("all");
             }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
+            className={`min-h-[40px] px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
               selectedWeek === 1
                 ? "bg-indigo-600 text-white shadow-2xs"
                 : "bg-slate-100 hover:bg-slate-200 text-slate-700"
             }`}
           >
-            Tuần 1: 家事 (Việc nhà · 170 từ)
+            Tuần 1: Việc nhà (家事)
           </button>
 
           <button
@@ -421,24 +500,24 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
               setSelectedDay("all");
               setSelectedCategory("all");
             }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
+            className={`min-h-[40px] px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
               selectedWeek === 2
                 ? "bg-indigo-600 text-white shadow-2xs"
                 : "bg-slate-100 hover:bg-slate-200 text-slate-700"
             }`}
           >
-            Tuần 2: 外出 (Ra ngoài & Đi tàu · 102 từ)
+            Tuần 2: Ra ngoài & Đi tàu (外出)
           </button>
         </div>
 
         {/* Day Selector Strip */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1 border-t border-slate-100">
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pt-1 border-t border-slate-100">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1">
             Ngày:
           </span>
           <button
             onClick={() => setSelectedDay("all")}
-            className={`px-2.5 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap cursor-pointer transition-colors shrink-0 ${
+            className={`min-h-[36px] px-3 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap cursor-pointer transition-colors shrink-0 ${
               selectedDay === "all"
                 ? "bg-slate-800 text-white font-bold"
                 : "bg-slate-100 hover:bg-slate-200 text-slate-600"
@@ -454,7 +533,7 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
                   setSelectedWeek(1);
                   setSelectedDay(1);
                 }}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap cursor-pointer transition-colors shrink-0 ${
+                className={`min-h-[36px] px-3 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap cursor-pointer transition-colors shrink-0 ${
                   selectedWeek === 1 && selectedDay === 1
                     ? "bg-indigo-600 text-white font-bold"
                     : "bg-slate-100 hover:bg-slate-200 text-slate-600"
@@ -467,7 +546,7 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
                   setSelectedWeek(1);
                   setSelectedDay(2);
                 }}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap cursor-pointer transition-colors shrink-0 ${
+                className={`min-h-[36px] px-3 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap cursor-pointer transition-colors shrink-0 ${
                   selectedWeek === 1 && selectedDay === 2
                     ? "bg-indigo-600 text-white font-bold"
                     : "bg-slate-100 hover:bg-slate-200 text-slate-600"
@@ -480,20 +559,20 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
                   setSelectedWeek(1);
                   setSelectedDay(4);
                 }}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap cursor-pointer transition-colors shrink-0 ${
+                className={`min-h-[36px] px-3 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap cursor-pointer transition-colors shrink-0 ${
                   selectedWeek === 1 && selectedDay === 4
                     ? "bg-indigo-600 text-white font-bold"
                     : "bg-slate-100 hover:bg-slate-200 text-slate-600"
                 }`}
               >
-                T1-N4: Dọn dẹp & Rác
+                T1-N4: Dọn dẹp
               </button>
               <button
                 onClick={() => {
                   setSelectedWeek(1);
                   setSelectedDay(5);
                 }}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap cursor-pointer transition-colors shrink-0 ${
+                className={`min-h-[36px] px-3 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap cursor-pointer transition-colors shrink-0 ${
                   selectedWeek === 1 && selectedDay === 5
                     ? "bg-indigo-600 text-white font-bold"
                     : "bg-slate-100 hover:bg-slate-200 text-slate-600"
@@ -506,13 +585,13 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
                   setSelectedWeek(1);
                   setSelectedDay(6);
                 }}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap cursor-pointer transition-colors shrink-0 ${
+                className={`min-h-[36px] px-3 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap cursor-pointer transition-colors shrink-0 ${
                   selectedWeek === 1 && selectedDay === 6
                     ? "bg-indigo-600 text-white font-bold"
                     : "bg-slate-100 hover:bg-slate-200 text-slate-600"
                 }`}
               >
-                T1-N6: Nuôi con & Thú
+                T1-N6: Nuôi dạy con
               </button>
             </>
           )}
@@ -524,7 +603,7 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
                   setSelectedWeek(2);
                   setSelectedDay(1);
                 }}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap cursor-pointer transition-colors shrink-0 ${
+                className={`min-h-[36px] px-3 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap cursor-pointer transition-colors shrink-0 ${
                   selectedWeek === 2 && selectedDay === 1
                     ? "bg-indigo-600 text-white font-bold"
                     : "bg-slate-100 hover:bg-slate-200 text-slate-600"
@@ -537,7 +616,7 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
                   setSelectedWeek(2);
                   setSelectedDay(2);
                 }}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap cursor-pointer transition-colors shrink-0 ${
+                className={`min-h-[36px] px-3 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap cursor-pointer transition-colors shrink-0 ${
                   selectedWeek === 2 && selectedDay === 2
                     ? "bg-indigo-600 text-white font-bold"
                     : "bg-slate-100 hover:bg-slate-200 text-slate-600"
@@ -550,7 +629,7 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
                   setSelectedWeek(2);
                   setSelectedDay(3);
                 }}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap cursor-pointer transition-colors shrink-0 ${
+                className={`min-h-[36px] px-3 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap cursor-pointer transition-colors shrink-0 ${
                   selectedWeek === 2 && selectedDay === 3
                     ? "bg-indigo-600 text-white font-bold"
                     : "bg-slate-100 hover:bg-slate-200 text-slate-600"
@@ -564,7 +643,7 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
       </div>
 
       {/* ------------------------------------------------------- */}
-      {/* 3. SUBMODE 1: DANH SÁCH (LIST VIEW)                     */}
+      {/* 3. SUBMODE 1: DANH SÁCH (LIST VIEW - Optimized Cards)    */}
       {/* ------------------------------------------------------- */}
       {subMode === "list" && (
         <div className="space-y-3">
@@ -581,7 +660,7 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
                   setSelectedDay("all");
                   setSelectedCategory("all");
                 }}
-                className="mt-3 px-4 py-2 text-xs font-bold bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
+                className="mt-3 px-4 py-2.5 text-xs font-bold bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors cursor-pointer min-h-[44px]"
               >
                 Xóa tất cả bộ lọc
               </button>
@@ -614,11 +693,11 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
                         <div className="flex items-center gap-1 shrink-0">
                           <button
                             onClick={() => toggleStarred(item.id)}
-                            className="p-1 text-slate-400 hover:text-amber-500 transition-colors cursor-pointer"
+                            className="min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-amber-500 transition-colors cursor-pointer"
                             title={isStarred ? "Bỏ lưu" : "Lưu từ"}
                           >
                             <Bookmark
-                              size={15}
+                              size={17}
                               className={
                                 isStarred
                                   ? "fill-amber-400 text-amber-500"
@@ -628,11 +707,11 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
                           </button>
                           <button
                             onClick={() => toggleLearned(item.id)}
-                            className="p-1 text-slate-400 hover:text-emerald-600 transition-colors cursor-pointer"
+                            className="min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-emerald-600 transition-colors cursor-pointer"
                             title={isLearned ? "Đã thuộc" : "Đánh dấu đã thuộc"}
                           >
                             <CheckCircle2
-                              size={16}
+                              size={18}
                               className={
                                 isLearned
                                   ? "fill-emerald-500 text-white"
@@ -654,13 +733,13 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
                           </h3>
                         </div>
 
-                        {/* Audio Speak Button */}
+                        {/* Audio Speak Button (Min 48px touch target for iPhone 12) */}
                         <button
                           onClick={() => speakJapanese(item.japanese)}
-                          className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-xl bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 border border-slate-200 transition-colors cursor-pointer shrink-0"
+                          className="min-h-[48px] min-w-[48px] flex items-center justify-center p-2 rounded-xl bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 border border-slate-200 transition-colors cursor-pointer shrink-0"
                           title="Nghe phát âm"
                         >
-                          <Volume2 size={18} />
+                          <Volume2 size={20} />
                         </button>
                       </div>
 
@@ -689,7 +768,7 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
                       <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-end">
                         <button
                           onClick={() => onLookupWord(item.japanese)}
-                          className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
+                          className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer min-h-[36px]"
                         >
                           <Sparkles size={12} />
                           <span>Tra cứu AI Grounding</span>
@@ -709,10 +788,9 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
       {/* ------------------------------------------------------- */}
       {subMode === "flashcard" && (
         <div className="max-w-xl mx-auto space-y-4">
-          {/* Flashcard Card Container */}
           {currentFlashcard ? (
             <div className="space-y-4">
-              {/* Progress counter */}
+              {/* Progress counter & Mode controls */}
               <div className="flex items-center justify-between text-xs font-bold text-slate-500 px-1">
                 <span>
                   Thẻ {currentCardIndex + 1} / {filteredData.length}
@@ -720,25 +798,25 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setIsShuffled(!isShuffled)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 border cursor-pointer transition-colors ${
+                    className={`min-h-[44px] px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 border cursor-pointer transition-colors ${
                       isShuffled
                         ? "bg-indigo-600 text-white border-indigo-600"
                         : "bg-white text-slate-600 border-slate-200"
                     }`}
                   >
-                    <Shuffle size={13} />
-                    <span>Trộn thẻ</span>
+                    <Shuffle size={14} />
+                    <span>Trộn</span>
                   </button>
 
                   <button
                     onClick={() => setAutoPlayAudio(!autoPlayAudio)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 border cursor-pointer transition-colors ${
+                    className={`min-h-[44px] px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 border cursor-pointer transition-colors ${
                       autoPlayAudio
                         ? "bg-emerald-50 text-emerald-800 border-emerald-300"
                         : "bg-white text-slate-400 border-slate-200"
                     }`}
                   >
-                    {autoPlayAudio ? <Volume2 size={13} /> : <VolumeX size={13} />}
+                    {autoPlayAudio ? <Volume2 size={14} /> : <VolumeX size={14} />}
                     <span>Phát âm</span>
                   </button>
                 </div>
@@ -773,10 +851,10 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
                         e.stopPropagation();
                         toggleStarred(currentFlashcard.id);
                       }}
-                      className="p-1.5 text-slate-400 hover:text-amber-500 cursor-pointer"
+                      className="min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-amber-500 cursor-pointer"
                     >
                       <Bookmark
-                        size={18}
+                        size={19}
                         className={
                           starredIds.has(currentFlashcard.id)
                             ? "fill-amber-400 text-amber-500"
@@ -789,10 +867,10 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
                         e.stopPropagation();
                         toggleLearned(currentFlashcard.id);
                       }}
-                      className="p-1.5 text-slate-400 hover:text-emerald-600 cursor-pointer"
+                      className="min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-emerald-600 cursor-pointer"
                     >
                       <CheckCircle2
-                        size={19}
+                        size={20}
                         className={
                           learnedIds.has(currentFlashcard.id)
                             ? "fill-emerald-500 text-white"
@@ -842,8 +920,8 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
 
                 {/* Card Bottom: Flip hint & Audio trigger */}
                 <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-100">
-                  <span className="flex items-center gap-1 text-indigo-600 font-bold">
-                    <RotateCw size={13} />
+                  <span className="flex items-center gap-1.5 text-indigo-600 font-bold min-h-[44px] items-center">
+                    <RotateCw size={14} />
                     <span>Lật thẻ</span>
                   </span>
 
@@ -852,27 +930,27 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
                       e.stopPropagation();
                       speakJapanese(currentFlashcard.japanese);
                     }}
-                    className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-xl bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 transition-colors"
+                    className="min-h-[48px] min-w-[48px] flex items-center justify-center p-2 rounded-xl bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 transition-colors"
                   >
-                    <Volume2 size={16} />
+                    <Volume2 size={18} />
                   </button>
                 </div>
               </div>
 
-              {/* Bottom Thumb-Friendly Nav Controls */}
-              <div className="grid grid-cols-3 gap-3">
+              {/* Bottom Thumb-Friendly Nav Controls (>= 48px touch targets) */}
+              <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
                 <button
                   onClick={handlePrevCard}
                   disabled={currentCardIndex === 0}
-                  className="min-h-[48px] px-4 py-3 rounded-xl border border-slate-200 bg-white font-bold text-xs sm:text-sm text-slate-700 flex items-center justify-center gap-1.5 shadow-xs hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  className="min-h-[48px] px-3 sm:px-4 py-3 rounded-xl border border-slate-200 bg-white font-bold text-xs sm:text-sm text-slate-700 flex items-center justify-center gap-1.5 shadow-xs hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                 >
                   <ChevronLeft size={18} />
-                  <span>Từ trước</span>
+                  <span>Trước</span>
                 </button>
 
                 <button
                   onClick={handleFlipCard}
-                  className="min-h-[48px] px-4 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                  className="min-h-[48px] px-3 sm:px-4 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
                 >
                   <RotateCw size={17} />
                   <span>{isFlipped ? "Mặt trước" : "Lật nghĩa"}</span>
@@ -881,9 +959,9 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
                 <button
                   onClick={handleNextCard}
                   disabled={currentCardIndex === filteredData.length - 1}
-                  className="min-h-[48px] px-4 py-3 rounded-xl border border-slate-200 bg-white font-bold text-xs sm:text-sm text-slate-700 flex items-center justify-center gap-1.5 shadow-xs hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  className="min-h-[48px] px-3 sm:px-4 py-3 rounded-xl border border-slate-200 bg-white font-bold text-xs sm:text-sm text-slate-700 flex items-center justify-center gap-1.5 shadow-xs hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                 >
-                  <span>Tiếp theo</span>
+                  <span>Kế tiếp</span>
                   <ChevronRight size={18} />
                 </button>
               </div>
@@ -938,14 +1016,14 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
                 </div>
                 <button
                   onClick={() => speakJapanese(currentQuizItem?.japanese)}
-                  className="mt-2 inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-indigo-600 cursor-pointer"
+                  className="mt-2 min-h-[44px] px-3 py-1 inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-indigo-600 cursor-pointer"
                 >
-                  <Volume2 size={14} />
+                  <Volume2 size={16} />
                   <span>Nghe phát âm</span>
                 </button>
               </div>
 
-              {/* 4 Choices (1 column on iPhone 12, touch target >= 44px) */}
+              {/* 4 Choices (1 column on mobile, touch target >= 48px) */}
               <div className="space-y-2.5">
                 {quizOptions.map((opt, idx) => {
                   const isSelected = selectedOption === idx;
@@ -970,7 +1048,7 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
                       key={opt.id}
                       onClick={() => handleSelectQuizOption(idx)}
                       disabled={isAnswerSubmitted}
-                      className={`w-full min-h-[48px] p-3.5 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${btnStyle}`}
+                      className={`w-full min-h-[50px] p-3.5 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${btnStyle}`}
                     >
                       <div className="flex items-center gap-3">
                         <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-600 text-xs font-bold flex items-center justify-center shrink-0">
@@ -1034,16 +1112,16 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
                 </strong>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   onClick={restartQuiz}
-                  className="flex-1 min-h-[44px] py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm shadow-xs transition-colors cursor-pointer"
+                  className="flex-1 min-h-[48px] py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm shadow-xs transition-colors cursor-pointer"
                 >
                   Làm lại bài kiểm tra
                 </button>
                 <button
                   onClick={() => setSubMode("list")}
-                  className="min-h-[44px] py-2.5 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs sm:text-sm transition-colors cursor-pointer"
+                  className="min-h-[48px] py-3 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs sm:text-sm transition-colors cursor-pointer"
                 >
                   Xem danh sách
                 </button>
@@ -1052,6 +1130,16 @@ export function N3VocabLearningView({ onLookupWord }: N3VocabLearningViewProps) 
           )}
         </div>
       )}
+
+      {/* Import / Export & Sync Modal */}
+      <N3DataImportExportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        currentItems={allItems}
+        onMergeSuccess={handleMergeSuccess}
+        onResetToDefault={handleResetToDefault}
+        isCustomized={allItems.length !== tuVungN3SouMatomeData.length}
+      />
     </div>
   );
 }

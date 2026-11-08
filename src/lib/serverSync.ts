@@ -20,6 +20,7 @@ import { hanTu1200List } from "../data/hanTu1200";
 import { kanjiSoTrungCapList } from "../data/kanjiSoTrungCap";
 import { dongDuKanjiList } from "../data/dongDuKanji";
 import { tuVungChuDeList, tuVungBaiHocList } from "../data/tuVungN3";
+import { tuVungN3SouMatomeData } from "../data/tuVungN3SouMatome";
 
 // Read Firebase config from firebase-applet-config.json
 let serverDb: Firestore | null = null;
@@ -340,6 +341,31 @@ export async function executeServerSync(triggerType: string = "cronjob") {
     });
     await lessonBatch.commit();
 
+    // 9. Sync Từ vựng N3 Sou Matome (hơn 415 từ)
+    for (let i = 0; i < tuVungN3SouMatomeData.length; i += Q_CHUNK) {
+      const chunk = tuVungN3SouMatomeData.slice(i, i + Q_CHUNK);
+      const smBatch = writeBatch(serverDb);
+      chunk.forEach((item) => {
+        smBatch.set(doc(serverDb!, "vocabulary_n3_soumatome", item.id), {
+          id: item.id,
+          stt: item.stt,
+          week: item.week,
+          weekTitle: item.weekTitle,
+          day: item.day,
+          dayTitle: item.dayTitle,
+          category: item.category,
+          japanese: item.japanese,
+          hiragana: item.hiragana,
+          vietnamese: item.vietnamese,
+          type: item.type,
+          exampleSentence: item.exampleSentence || "",
+          exampleMeaning: item.exampleMeaning || "",
+          updatedAt: nowIso,
+        });
+      });
+      await smBatch.commit();
+    }
+
     const durationMs = Date.now() - startTime;
     const totalItemsCount =
       2 +
@@ -351,9 +377,10 @@ export async function executeServerSync(triggerType: string = "cronjob") {
       kanjiSoTrungCapList.length +
       dongDuKanjiList.length +
       tuVungChuDeList.length +
-      tuVungBaiHocList.length;
+      tuVungBaiHocList.length +
+      tuVungN3SouMatomeData.length;
 
-    // 9. Record sync log in Firestore
+    // 10. Record sync log in Firestore
     const logId = `sync_${Date.now()}`;
     const logBatch = writeBatch(serverDb);
     logBatch.set(doc(serverDb, "sync_logs", logId), {
@@ -372,6 +399,7 @@ export async function executeServerSync(triggerType: string = "cronjob") {
       dongDuKanjiCount: dongDuKanjiList.length,
       vocabTopicsCount: tuVungChuDeList.length,
       vocabLessonsCount: tuVungBaiHocList.length,
+      vocabN3SouMatomeCount: tuVungN3SouMatomeData.length,
       status: "success",
     });
     await logBatch.commit();
@@ -392,6 +420,7 @@ export async function executeServerSync(triggerType: string = "cronjob") {
       dongDuKanjiCount: dongDuKanjiList.length,
       vocabTopicsCount: tuVungChuDeList.length,
       vocabLessonsCount: tuVungBaiHocList.length,
+      vocabN3SouMatomeCount: tuVungN3SouMatomeData.length,
       totalItemsCount,
       durationMs,
       timestamp: nowIso,

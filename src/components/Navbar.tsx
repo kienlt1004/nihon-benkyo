@@ -135,6 +135,13 @@ export function Navbar({
       icon: Grid,
       iconColor: "text-emerald-600 bg-emerald-50",
     },
+    {
+      id: "vocab-n3" as AppMode,
+      title: "Từ vựng N3 Sou Matome",
+      subtitle: "Hơn 320 từ theo Tuần & Ngày (14 trang số hóa)",
+      icon: BookOpen,
+      iconColor: "text-blue-600 bg-blue-50",
+    },
   ];
 
   // AI features list
@@ -322,7 +329,7 @@ export function Navbar({
               setAiDropdownOpen(false);
               setLessonDropdownOpen(false);
             }}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
+            className={`min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
               mode === "kanji"
                 ? "bg-emerald-600 text-white border-emerald-600 shadow-2xs"
                 : "bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border-emerald-200"
@@ -332,6 +339,26 @@ export function Navbar({
             <Grid size={15} />
             <span>Hán Tự N3</span>
             <span className="text-[9px] font-black bg-emerald-200 text-emerald-950 px-1 py-0.2 rounded-md">1.9K</span>
+          </button>
+
+          {/* Direct Từ Vựng N3 Sou Matome Button */}
+          <button
+            onClick={() => {
+              setMode("vocab-n3");
+              setStudyDropdownOpen(false);
+              setAiDropdownOpen(false);
+              setLessonDropdownOpen(false);
+            }}
+            className={`min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
+              mode === "vocab-n3"
+                ? "bg-blue-600 text-white border-blue-600 shadow-2xs"
+                : "bg-blue-50 hover:bg-blue-100 text-blue-900 border-blue-200"
+            }`}
+            title="Từ vựng N3 Sou Matome số hóa từ 14 trang giáo trình (Việc nhà, Ra ngoài)"
+          >
+            <BookOpen size={15} />
+            <span>Từ Vựng N3</span>
+            <span className="text-[9px] font-black bg-blue-200 text-blue-950 px-1 py-0.2 rounded-md">Sou Matome</span>
           </button>
 
           {/* 2. Trợ lý AI Dropdown */}
@@ -702,34 +729,21 @@ export function Navbar({
               })}
             </div>
 
-            {/* Mobile Specialized Sections */}
-            <div className="grid grid-cols-3 gap-2 mt-2">
+            {/* Mobile Specialized Sections (2x2 grid, min-h-[48px] for iPhone 12+) */}
+            <div className="grid grid-cols-2 gap-2 mt-2">
               <button
                 onClick={() => {
-                  setMode("listening");
+                  setMode("vocab-n3");
                   setMobileMenuOpen(false);
                 }}
-                className={`p-2 rounded-xl border text-center text-xs font-bold transition-all cursor-pointer ${
-                  mode === "listening"
-                    ? "bg-purple-600 text-white border-purple-600"
-                    : "bg-purple-50 text-purple-900 border-purple-200"
+                className={`min-h-[48px] p-2.5 rounded-xl border text-center text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                  mode === "vocab-n3"
+                    ? "bg-blue-600 text-white border-blue-600 shadow-2xs"
+                    : "bg-blue-50 text-blue-900 border-blue-200"
                 }`}
               >
-                Luyện nghe
-              </button>
-
-              <button
-                onClick={() => {
-                  setMode("review");
-                  setMobileMenuOpen(false);
-                }}
-                className={`p-2 rounded-xl border text-center text-xs font-bold transition-all cursor-pointer ${
-                  mode === "review"
-                    ? "bg-amber-600 text-white border-amber-600"
-                    : "bg-amber-50 text-amber-900 border-amber-200"
-                }`}
-              >
-                Sổ tay ôn tập
+                <BookOpen size={16} />
+                <span>Từ Vựng N3 (320+)</span>
               </button>
 
               <button
@@ -737,13 +751,44 @@ export function Navbar({
                   setMode("kanji");
                   setMobileMenuOpen(false);
                 }}
-                className={`p-2 rounded-xl border text-center text-xs font-bold transition-all cursor-pointer ${
+                className={`min-h-[48px] p-2.5 rounded-xl border text-center text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
                   mode === "kanji"
-                    ? "bg-emerald-600 text-white border-emerald-600"
+                    ? "bg-emerald-600 text-white border-emerald-600 shadow-2xs"
                     : "bg-emerald-50 text-emerald-900 border-emerald-200"
                 }`}
               >
-                Hán Tự N3 (1.9K)
+                <Grid size={16} />
+                <span>Hán Tự N3 (1.9K)</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setMode("listening");
+                  setMobileMenuOpen(false);
+                }}
+                className={`min-h-[48px] p-2.5 rounded-xl border text-center text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                  mode === "listening"
+                    ? "bg-purple-600 text-white border-purple-600 shadow-2xs"
+                    : "bg-purple-50 text-purple-900 border-purple-200"
+                }`}
+              >
+                <Headphones size={16} />
+                <span>Luyện nghe N4</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setMode("review");
+                  setMobileMenuOpen(false);
+                }}
+                className={`min-h-[48px] p-2.5 rounded-xl border text-center text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                  mode === "review"
+                    ? "bg-amber-600 text-white border-amber-600 shadow-2xs"
+                    : "bg-amber-50 text-amber-900 border-amber-200"
+                }`}
+              >
+                <BookmarkCheck size={16} />
+                <span>Sổ tay ôn tập</span>
               </button>
             </div>
           </div>
@@ -764,7 +809,7 @@ export function Navbar({
                       setMode(item.id);
                       setMobileMenuOpen(false);
                     }}
-                    className={`p-2.5 rounded-xl border text-left flex items-center justify-between cursor-pointer transition-all ${
+                    className={`min-h-[48px] p-3 rounded-xl border text-left flex items-center justify-between cursor-pointer transition-all ${
                       isSelected
                         ? "bg-indigo-50 border-indigo-300 text-indigo-900 font-bold shadow-2xs"
                         : "bg-slate-50 border-slate-200 text-slate-700"
@@ -774,7 +819,7 @@ export function Navbar({
                       <div className={`p-1.5 rounded-lg ${item.iconColor}`}>
                         <Icon size={15} />
                       </div>
-                      <span className="text-xs">{item.title}</span>
+                      <span className="text-xs font-semibold">{item.title}</span>
                     </div>
                     <span
                       className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${item.badgeColor}`}
@@ -788,6 +833,69 @@ export function Navbar({
           </div>
         </div>
       )}
+
+      {/* Mobile Horizontal Quick Navigation Strip (iPhone 12+ optimized thumb reach) */}
+      <div className="md:hidden bg-slate-50 border-t border-slate-200/80 px-2 py-1.5 flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+        <button
+          onClick={() => setMode("vocab-n3")}
+          className={`min-h-[40px] px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-colors shrink-0 cursor-pointer ${
+            mode === "vocab-n3"
+              ? "bg-blue-600 text-white shadow-xs"
+              : "bg-white text-slate-700 border border-slate-200"
+          }`}
+        >
+          <BookOpen size={14} />
+          <span>Từ Vựng N3</span>
+        </button>
+
+        <button
+          onClick={() => setMode("kanji")}
+          className={`min-h-[40px] px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-colors shrink-0 cursor-pointer ${
+            mode === "kanji"
+              ? "bg-emerald-600 text-white shadow-xs"
+              : "bg-white text-slate-700 border border-slate-200"
+          }`}
+        >
+          <Grid size={14} />
+          <span>Hán Tự N3</span>
+        </button>
+
+        <button
+          onClick={() => setMode("listening")}
+          className={`min-h-[40px] px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-colors shrink-0 cursor-pointer ${
+            mode === "listening"
+              ? "bg-purple-600 text-white shadow-xs"
+              : "bg-white text-slate-700 border border-slate-200"
+          }`}
+        >
+          <Headphones size={14} />
+          <span>Luyện nghe</span>
+        </button>
+
+        <button
+          onClick={() => setMode("review")}
+          className={`min-h-[40px] px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-colors shrink-0 cursor-pointer ${
+            mode === "review"
+              ? "bg-amber-600 text-white shadow-xs"
+              : "bg-white text-slate-700 border border-slate-200"
+          }`}
+        >
+          <BookmarkCheck size={14} />
+          <span>Sổ tay</span>
+        </button>
+
+        <button
+          onClick={() => setMode("list")}
+          className={`min-h-[40px] px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-colors shrink-0 cursor-pointer ${
+            mode === "list"
+              ? "bg-indigo-600 text-white shadow-xs"
+              : "bg-white text-slate-700 border border-slate-200"
+          }`}
+        >
+          <BookOpen size={14} />
+          <span>Minna N4</span>
+        </button>
+      </div>
 
       {/* Firestore Sync Modal */}
       <FirestoreSyncModal
